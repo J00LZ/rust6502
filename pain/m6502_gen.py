@@ -7,7 +7,7 @@ import sys
 from string import Template
 
 InpPath = 'in.rs'
-OutPath = 'out.rs'
+OutPath = '../src/cpu/out.rs'
 
 # flag bits
 CF = (1<<0)
@@ -139,10 +139,11 @@ def l(s) :
 def write_op(op):
     if not op.cmt:
         op.cmt = '???'
-    l('    /* {} */'.format(op.cmt if op.cmt else '???'))
+    l('    /* {} (0x{:02X}) */'.format(op.cmt if op.cmt else '???', op.code))
     for t in range(0, 8):
         if t < op.i:
-            l('        _ if self.ir == (0x{:02X}<<3)|{} => {{{}}},'.format(op.code, t, op.src[t]))
+            zz = (op.code<<3)|t
+            l('        _ if self.ir == {} => {{{}}},'.format(zz, op.src[t]))
         
 
 #-------------------------------------------------------------------------------
@@ -173,69 +174,69 @@ def enc_addr(op, addr_mode, mem_access):
     if addr_mode == A____:
         # no addressing, this still puts the PC on the address bus without 
         # incrementing the PC
-        op.t('sa(&mut pins, self.pc);')
+        op.t('super::sa(&mut pins, self.pc);')
     elif addr_mode == A_IMM:
         # immediate mode
-        op.t('sa(&mut pins, self.pc);self.pc+=1;')
+        op.t('super::sa(&mut pins, self.pc);self.pc+=1;')
     elif addr_mode == A_ZER:
         # zero page
-        op.t('sa(&mut pins, self.pc);self.pc+=1;')
-        op.t('let zz = ga(&pins);sa(&mut pins, zz);')
+        op.t('super::sa(&mut pins, self.pc);self.pc+=1;')
+        op.t('let zz = super::ga(&pins);super::sa(&mut pins, zz);')
     elif addr_mode == A_ZPX:
         # zero page + X
-        op.t('sa(&mut pins, self.pc);self.pc+=1;')
-        op.t('self.adl_adh = ga(&pins);sa(&mut pins, self.adl_adh);')
-        op.t('sa(&mut pins, (self.adl_adh + (self.x as u16)) & 0x00FF);')
+        op.t('super::sa(&mut pins, self.pc);self.pc+=1;')
+        op.t('self.adl_adh = super::ga(&pins);super::sa(&mut pins, self.adl_adh);')
+        op.t('super::sa(&mut pins, (self.adl_adh + (self.x as u16)) & 0x00FF);')
     elif addr_mode == A_ZPY:
         # zero page + Y
-        op.t('sa(&mut pins, self.pc);self.pc+=1;')
-        op.t('self.adl_adh = ga(&pins);sa(&mut pins, self.adl_adh);')
-        op.t('sa(&mut pins, (self.adl_adh+(self.y as u16))&0x00FF);')
+        op.t('super::sa(&mut pins, self.pc);self.pc+=1;')
+        op.t('self.adl_adh = super::ga(&pins);super::sa(&mut pins, self.adl_adh);')
+        op.t('super::sa(&mut pins, (self.adl_adh+(self.y as u16))&0x00FF);')
     elif addr_mode == A_ABS:
         # absolute
-        op.t('sa(&mut pins, self.pc);self.pc+=1;')
-        op.t('sa(&mut pins, self.pc);self.pc+=1;self.adl_adh = gd(&pins) as u16;')
-        op.t('let zz = gd(&pins);sa(&mut pins, ((zz as u16) << 8) | self.adl_adh);')
+        op.t('super::sa(&mut pins, self.pc);self.pc+=1;')
+        op.t('super::sa(&mut pins, self.pc);self.pc+=1;self.adl_adh = super::gd(&pins) as u16;')
+        op.t('let zz = super::gd(&pins);super::sa(&mut pins, ((zz as u16) << 8) | self.adl_adh);')
     elif addr_mode == A_ABX:
         # absolute + X
         # this needs to check if a page boundary is crossed, which costs
         # and additional cycle, but this early-out only happens when the
         # instruction doesn't need to write back to memory
-        op.t('sa(&mut pins, self.pc);self.pc+=1;')
-        op.t('sa(&mut pins, self.pc);self.pc+=1;self.adl_adh = gd(&pins) as u16;')
-        op.t('self.adl_adh|=((gd(&pins)as u16)<<8);sa(&mut pins, (self.adl_adh&0xFF00)|((self.adl_adh+(self.x as u16))&0xFF));')
+        op.t('super::sa(&mut pins, self.pc);self.pc+=1;')
+        op.t('super::sa(&mut pins, self.pc);self.pc+=1;self.adl_adh = super::gd(&pins) as u16;')
+        op.t('self.adl_adh|=(super::gd(&pins)as u16)<<8;super::sa(&mut pins, (self.adl_adh&0xFF00)|((self.adl_adh+(self.x as u16))&0xFF));')
         if mem_access == M_R_:
             # skip next tick if read access and page not crossed
             op.ta('self.ir += (!((self.adl_adh >> 8) - ((self.adl_adh + (self.x as u16)) >> 8)))&1;')
-        op.t('sa(&mut pins, self.adl_adh+(self.x as u16));')
+        op.t('super::sa(&mut pins, self.adl_adh+(self.x as u16));')
     elif addr_mode == A_ABY:
         # absolute + Y
         # same page-boundary-crossed special case as absolute+X
-        op.t('sa(&mut pins, self.pc);self.pc+=1;')
-        op.t('sa(&mut pins, self.pc);self.pc+=1;self.adl_adh = gd(&pins) as u16;')
-        op.t('self.adl_adh|=((gd(&pins)as u16)<<8);sa(&mut pins, (self.adl_adh&0xFF00)|((self.adl_adh+(self.y as u16))&0xFF));')
+        op.t('super::sa(&mut pins, self.pc);self.pc+=1;')
+        op.t('super::sa(&mut pins, self.pc);self.pc+=1;self.adl_adh = super::gd(&pins) as u16;')
+        op.t('self.adl_adh|=(super::gd(&pins)as u16)<<8;super::sa(&mut pins, (self.adl_adh&0xFF00)|((self.adl_adh+(self.y as u16))&0xFF));')
         if mem_access == M_R_:
             # skip next tick if read access and page not crossed
             op.ta('self.ir += (!((self.adl_adh >> 8) - ((self.adl_adh + (self.y as u16)) >> 8)))&1;')
-        op.t('sa(&mut pins, self.adl_adh+(self.y as u16));')
+        op.t('super::sa(&mut pins, self.adl_adh+(self.y as u16));')
     elif addr_mode == A_IDX:
         # (zp,X)
-        op.t('sa(&mut pins, self.pc);self.pc+=1;')
-        op.t('self.adl_adh = ga(&pins);sa(&mut pins, self.adl_adh);')
-        op.t('self.adl_adh = (self.adl_adh+(self.x as u16))&0xFF;sa(&mut pins, self.adl_adh);')
-        op.t('sa(&mut pins, self.adl_adh+1 & 0xFF); self.adl_adh = ga(&pins);')
-        op.t('let zz = gd(&pins);sa(&mut pins, ((zz as u16) << 8) | self.adl_adh);')
+        op.t('super::sa(&mut pins, self.pc);self.pc+=1;')
+        op.t('self.adl_adh = super::ga(&pins);super::sa(&mut pins, self.adl_adh);')
+        op.t('self.adl_adh = (self.adl_adh+(self.x as u16))&0xFF;super::sa(&mut pins, self.adl_adh);')
+        op.t('super::sa(&mut pins, (self.adl_adh+1) & 0xFF); self.adl_adh = super::ga(&pins);')
+        op.t('let zz = super::gd(&pins);super::sa(&mut pins, ((zz as u16) << 8) | self.adl_adh);')
     elif addr_mode == A_IDY:
         # (zp),Y
         # same page-boundary-crossed special case as absolute+X
-        op.t('sa(&mut pins, self.pc);self.pc+=1;')
-        op.t('self.adl_adh = ga(&pins);sa(&mut pins, self.adl_adh);')
-        op.t('sa(&mut pins, self.adl_adh+1 & 0xFF); self.adl_adh = ga(&pins);')
-        op.t('self.adl_adh|=((gd(&pins)as u16)<<8);sa(&mut pins, (self.adl_adh&0xFF00)|((self.adl_adh+(self.y as u16))&0xFF));')
+        op.t('super::sa(&mut pins, self.pc);self.pc+=1;')
+        op.t('self.adl_adh = super::ga(&pins);super::sa(&mut pins, self.adl_adh);')
+        op.t('super::sa(&mut pins, (self.adl_adh+1) & 0xFF); self.adl_adh = super::ga(&pins);')
+        op.t('self.adl_adh|=(super::gd(&pins)as u16)<<8;super::sa(&mut pins, (self.adl_adh&0xFF00)|((self.adl_adh+(self.y as u16))&0xFF));')
         if mem_access == M_R_:
             # skip next tick if read access and page not crossed
             op.ta('self.ir += (!((self.adl_adh >> 8) - ((self.adl_adh + (self.y as u16)) >> 8)))&1;')
-        op.t('sa(&mut pins, self.adl_adh+(self.y as u16));')
+        op.t('super::sa(&mut pins, self.adl_adh+(self.y as u16));')
     elif addr_mode == A_JMP:
         # jmp is completely handled in instruction decoding
         pass
@@ -249,12 +250,12 @@ def enc_addr(op, addr_mode, mem_access):
 #-------------------------------------------------------------------------------
 def i_brk(o):
     cmt(o, 'BRK')
-    o.t('if !self.brk_flags.contains(BreakFlags::NMI) && !self.brk_flags.contains(BreakFlags::IRQ) { self.pc += 1;                }                sad(&mut pins, (0x0100 | self.sp as u16), (self.pc >> 8) as u8);                self.sp -= 1;                if !self.brk_flags.contains(BreakFlags::RESET) {                    wr(&mut pins)                }           ')
-    o.t('sad(&mut pins, (0x0100 | self.sp as u16), (self.pc) as u8);self.sp -= 1;if !self.brk_flags.contains(BreakFlags::RESET) {wr(&mut pins)}')
-    o.t('sad(&mut pins, (0x0100 | self.sp as u16), (self.sr.bits | StatusRegister::X.bits));self.sp -= 1;if self.brk_flags.contains(BreakFlags::RESET) {self.adl_adh = 0xFFC;} else {wr(&mut pins);if self.brk_flags.contains(BreakFlags::NMI) {self.adl_adh = 0xFFFA} else {self.adl_adh = 0xFFFE}}')
-    o.t('sa(&mut pins, self.adl_adh);self.adl_adh += 1;self.sr.set(StatusRegister::I | StatusRegister::B, true);self.brk_flags = BreakFlags::empty();')
-    o.t('sa(&mut pins, self.adl_adh);self.adl_adh = gd(&pins) as u16; /* NMI "half-hijacking" not possible */')
-    o.t('self.pc = ((gd(&pins) as u16) << 8) | self.adl_adh;')
+    o.t('if !self.brk_flags.contains(super::BreakFlags::NMI) && !self.brk_flags.contains(super::BreakFlags::IRQ) { self.pc += 1;                }                super::sad(&mut pins, 0x0100 | self.sp as u16, (self.pc >> 8) as u8);                self.sp = (Wrapping(self.sp) - Wrapping(1)).0;                if !self.brk_flags.contains(super::BreakFlags::RESET) {                    super::wr(&mut pins)                }           ')
+    o.t('super::sad(&mut pins, 0x0100 | self.sp as u16, (self.pc) as u8);self.sp = (Wrapping(self.sp) - Wrapping(1)).0;if !self.brk_flags.contains(super::BreakFlags::RESET) {super::wr(&mut pins)}')
+    o.t('super::sad(&mut pins, 0x0100 | self.sp as u16, self.sr.bits | super::StatusRegister::X.bits);self.sp = (Wrapping(self.sp) - Wrapping(1)).0;if self.brk_flags.contains(super::BreakFlags::RESET) {self.adl_adh = 0xFFFC;} else {super::wr(&mut pins);if self.brk_flags.contains(super::BreakFlags::NMI) {self.adl_adh = 0xFFFA} else {self.adl_adh = 0xFFFE}}')
+    o.t('super::sa(&mut pins, self.adl_adh);self.adl_adh += 1;self.sr.set(super::StatusRegister::I | super::StatusRegister::B, true);self.brk_flags = super::BreakFlags::empty();')
+    o.t('super::sa(&mut pins, self.adl_adh);self.adl_adh = super::gd(&pins) as u16; /* NMI "half-hijacking" not possible */')
+    o.t('self.pc = ((super::gd(&pins) as u16) << 8) | self.adl_adh;')
 
 #-------------------------------------------------------------------------------
 def i_nop(o):
@@ -269,49 +270,49 @@ def u_nop(o):
 #-------------------------------------------------------------------------------
 def i_lda(o):
     cmt(o,'LDA')
-    o.t('self.ac=gd(&pins);self.nz(self.ac);')
+    o.t('self.ac=super::gd(&pins);self.nz(self.ac);')
 
 #-------------------------------------------------------------------------------
 def i_ldx(o):
     cmt(o,'LDX')
-    o.t('self.x=gd(&pins);self.nz(self.x);')
+    o.t('self.x=super::gd(&pins);self.nz(self.x);')
 
 #-------------------------------------------------------------------------------
 def i_ldy(o):
     cmt(o,'LDY')
-    o.t('self.y=gd(&pins);self.nz(self.y);')
+    o.t('self.y=super::gd(&pins);self.nz(self.y);')
 
 #-------------------------------------------------------------------------------
 def u_lax(o):
     u_cmt(o,'LAX')
-    o.t('self.ac = gd(&pins); self.x = gd(&pins);self.nz(self.x);')
+    o.t('self.ac = super::gd(&pins); self.x = super::gd(&pins);self.nz(self.x);')
 
 #-------------------------------------------------------------------------------
 def x_lxa(o):
     # undocumented LXA
     # and immediate byte with A, then load X with A
     u_cmt(o,'LXA')
-    o.t('let zz = (self.ac|0xEE)&gd(&pins);self.ac=zz;self.x=zz;self.nz(self.ac);')
+    o.t('let zz = (self.ac|0xEE)&super::gd(&pins);self.ac=zz;self.x=zz;self.nz(self.ac);')
 
 #-------------------------------------------------------------------------------
 def i_sta(o):
     cmt(o,'STA')
-    o.ta('sd(&mut pins, self.ac); wr(&mut pins);')
+    o.ta('super::sd(&mut pins, self.ac); super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def i_stx(o):
     cmt(o,'STX')
-    o.ta('sd(&mut pins, self.x); wr(&mut pins);')
+    o.ta('super::sd(&mut pins, self.x); super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def i_sty(o):
     cmt(o,'STY')
-    o.ta('sd(&mut pins, self.y); wr(&mut pins);')
+    o.ta('super::sd(&mut pins, self.y); super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def u_sax(o):
     u_cmt(o,'SAX')
-    o.ta('sd(&mut pins, self.ac&self.x); wr(&mut pins);')
+    o.ta('super::sd(&mut pins, self.ac&self.x); super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def i_tax(o):
@@ -346,90 +347,90 @@ def i_tsx(o):
 #-------------------------------------------------------------------------------
 def i_php(o):
     cmt(o,'PHP')
-    o.t('sad(&mut pins, 0x0100|(self.sp as u16), self.sr.bits|StatusRegister::X.bits);self.sp-=1;wr(&mut pins);')
+    o.t('super::sad(&mut pins, 0x0100|(self.sp as u16), self.sr.bits|super::StatusRegister::X.bits);self.sp-=1;super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def i_plp(o):
     cmt(o,'PLP')
-    o.t('sa(&mut pins, 0x0100|(self.sp as u16));self.sp+=1;')   # read junk byte from current SP
-    o.t('sa(&mut pins, 0x0100|(self.sp as u16));')     # read actual byte  
-    o.t('self.sr = StatusRegister::from_bits_truncate((gd(&pins)|StatusRegister::B.bits)&!StatusRegister::X.bits);');
+    o.t('super::sa(&mut pins, 0x0100|(self.sp as u16));self.sp+=1;')   # read junk byte from current SP
+    o.t('super::sa(&mut pins, 0x0100|(self.sp as u16));')     # read actual byte  
+    o.t('self.sr = super::StatusRegister::from_bits_truncate((super::gd(&pins)|super::StatusRegister::B.bits)&!super::StatusRegister::X.bits);');
 
 #-------------------------------------------------------------------------------
 def i_pha(o):
     cmt(o,'PHA')
-    o.t('sad(&mut pins, 0x0100|(self.sp as u16), self.ac);self.sp-=1;wr(&mut pins);')
+    o.t('super::sad(&mut pins, 0x0100|(self.sp as u16), self.ac);self.sp-=1;super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def i_pla(o):
     cmt(o,'PLA')
-    o.t('sa(&mut pins, 0x0100|(self.sp as u16));self.sp+=1;')   # read junk byte from current SP
-    o.t('sa(&mut pins, 0x0100|(self.sp as u16));')     # read actual byte  
-    o.t('self.ac=gd(&pins);self.nz(self.ac);')
+    o.t('super::sa(&mut pins, 0x0100|(self.sp as u16));self.sp+=1;')   # read junk byte from current SP
+    o.t('super::sa(&mut pins, 0x0100|(self.sp as u16));')     # read actual byte  
+    o.t('self.ac=super::gd(&pins);self.nz(self.ac);')
 
 #-------------------------------------------------------------------------------
 def i_se(o, f):
     cmt(o,'SE'+flag_name(f))
-    o.t('self.sr.set(StatusRegister::'+flag_name(f)+', true);')
+    o.t('self.sr.set(super::StatusRegister::'+flag_name(f)+', true);')
 
 #-------------------------------------------------------------------------------
 def i_cl(o, f):
     cmt(o,'CL'+flag_name(f))
-    o.t('self.sr.set(StatusRegister::'+flag_name(f)+', false);')
+    o.t('self.sr.set(super::StatusRegister::'+flag_name(f)+', false);')
 
 #-------------------------------------------------------------------------------
 def i_br(o, m, v):
     cmt(o,branch_name(m,v))
     # if branch not taken?
-    o.t('sa(&mut pins, self.pc);self.adl_adh=self.pc+(gd(&pins) as u16); if self.sr.bitand(StatusRegister::'+flag_name(m)+').bits !='+hex(v)+' { fetch(&mut pins, self.pc) }')
+    o.t('super::sa(&mut pins, self.pc);self.adl_adh=self.pc+(super::gd(&pins) as u16); if self.sr.bitand(super::StatusRegister::'+flag_name(m)+').bits !='+hex(v)+' { super::fetch(&mut pins, self.pc) }')
     # branch taken: shortcut if page not crossed, 'branchquirk' interrupt fix
-    o.t('sa(&mut pins, (self.pc & 0xFF00)|(self.adl_adh&0x00FF));if self.adl_adh&0xFF00 == self.pc &0xFF00 { self.pc=self.adl_adh;self.irq_pip>>=1;self.nmi_pip>>=1;;fetch(&mut pins, self.pc) }')
+    o.t('super::sa(&mut pins, (self.pc & 0xFF00)|(self.adl_adh&0x00FF));if self.adl_adh&0xFF00 == self.pc &0xFF00 { self.pc=self.adl_adh;self.irq_pip>>=1;self.nmi_pip>>=1;super::fetch(&mut pins, self.pc) }')
     # page crossed extra cycle:
     o.t('self.pc=self.adl_adh;')
 
 #-------------------------------------------------------------------------------
 def i_jmp(o):
     cmt(o,'JMP')
-    o.t('sa(&mut pins, self.pc);self.pc+=1;')
-    o.t('sa(&mut pins, self.pc);self.pc+=1;self.adl_adh = gd(&pins) as u16;')
-    o.t('self.pc = ((gd(&pins) as u16)<<8)|self.adl_adh;')
+    o.t('super::sa(&mut pins, self.pc);self.pc+=1;')
+    o.t('super::sa(&mut pins, self.pc);self.pc+=1;self.adl_adh = super::gd(&pins) as u16;')
+    o.t('self.pc = ((super::gd(&pins) as u16)<<8)|self.adl_adh;')
 
 #-------------------------------------------------------------------------------
 def i_jmpi(o):
     cmt(o,'JMPI')
-    o.t('sa(&mut pins, self.pc);self.pc+=1;')
-    o.t('sa(&mut pins, self.pc);self.pc+=1;self.adl_adh = gd(&pins) as u16;')
-    o.t('self.adl_adh|=(gd(&pins) as u16)<<8;sa(&mut pins, self.adl_adh);')
-    o.t('sa(&mut pins, (self.adl_adh&0xFF00)|((self.adl_adh+1)&0x00FF));;self.adl_adh = gd(&pins) as u16;')
-    o.t('self.pc = ((gd(&pins) as u16)<<8)|self.adl_adh;')
+    o.t('super::sa(&mut pins, self.pc);self.pc+=1;')
+    o.t('super::sa(&mut pins, self.pc);self.pc+=1;self.adl_adh = super::gd(&pins) as u16;')
+    o.t('self.adl_adh|=(super::gd(&pins) as u16)<<8;super::sa(&mut pins, self.adl_adh);')
+    o.t('super::sa(&mut pins, (self.adl_adh&0xFF00)|((self.adl_adh+1)&0x00FF));self.adl_adh = super::gd(&pins) as u16;')
+    o.t('self.pc = ((super::gd(&pins) as u16)<<8)|self.adl_adh;')
 
 #-------------------------------------------------------------------------------
 def i_jsr(o):
     cmt(o,'JSR')
     # read low byte of target address
-    o.t('sa(&mut pins, self.pc);self.pc+=1;')
+    o.t('super::sa(&mut pins, self.pc);self.pc+=1;')
     # put SP on addr bus, next cycle is a junk read
-    o.t('sa(&mut pins, 0x0100|(self.sp as u16));self.adl_adh = gd(&pins) as u16;')
+    o.t('super::sa(&mut pins, 0x0100|(self.sp as u16));self.adl_adh = super::gd(&pins) as u16;')
     # write PC high byte to stack
-    o.t('sad(&mut pins, 0x0100|(self.sp as u16), (self.pc>>8) as u8);self.sp-=1;wr(&mut pins);')
+    o.t('super::sad(&mut pins, 0x0100|(self.sp as u16), (self.pc>>8) as u8);self.sp-=1;super::wr(&mut pins);')
     # write PC low byte to stack
-    o.t('sad(&mut pins, 0x0100|(self.sp as u16), (self.pc as u8));self.sp-=1;wr(&mut pins);')
+    o.t('super::sad(&mut pins, 0x0100|(self.sp as u16), self.pc as u8);self.sp-=1;super::wr(&mut pins);')
     # load target address high byte
-    o.t('sa(&mut pins, self.pc);')
+    o.t('super::sa(&mut pins, self.pc);')
     # load PC and done
-    o.t('self.pc = ((gd(&pins) as u16)<<8)|self.adl_adh;')
+    o.t('self.pc = ((super::gd(&pins) as u16)<<8)|self.adl_adh;')
 
 #-------------------------------------------------------------------------------
 def i_rts(o):
     cmt(o,'RTS')
     # put SP on stack and do a junk read
-    o.t('sa(&mut pins, 0x0100|(self.sp as u16));self.sp+=1;')
+    o.t('super::sa(&mut pins, 0x0100|(self.sp as u16));self.sp+=1;')
     # load return address low byte from stack
-    o.t('sa(&mut pins, 0x0100|(self.sp as u16));self.sp+=1;')
+    o.t('super::sa(&mut pins, 0x0100|(self.sp as u16));self.sp+=1;')
     # load return address high byte from stack
-    o.t('sa(&mut pins, 0x0100|(self.sp as u16));self.adl_adh = gd(&pins) as u16;')
+    o.t('super::sa(&mut pins, 0x0100|(self.sp as u16));self.adl_adh = super::gd(&pins) as u16;')
     # put return address in PC, this is one byte before next op, do junk read from PC
-    o.t('self.pc = ((gd(&pins) as u16)<<8)|self.adl_adh;sa(&mut pins, self.pc);self.pc+=1;')
+    o.t('self.pc = ((super::gd(&pins) as u16)<<8)|self.adl_adh;super::sa(&mut pins, self.pc);self.pc+=1;')
     # next tick is opcode fetch
     o.t('');
 
@@ -437,84 +438,84 @@ def i_rts(o):
 def i_rti(o):
     cmt(o,'RTI')
     # put SP on stack and do a junk read
-    o.t('sa(&mut pins, 0x0100|(self.sp as u16));self.sp+=1;')
+    o.t('super::sa(&mut pins, 0x0100|(self.sp as u16));self.sp+=1;')
     # load processor status flag from stack
-    o.t('sa(&mut pins, 0x0100|(self.sp as u16));self.sp+=1;')
+    o.t('super::sa(&mut pins, 0x0100|(self.sp as u16));self.sp+=1;')
     # load return address low byte from stack
-    o.t('sa(&mut pins, 0x0100|(self.sp as u16));self.sp+=1;self.sr = StatusRegister::from_bits_truncate((gd(&pins)|StatusRegister::B.bits)&!StatusRegister::X.bits);')
+    o.t('super::sa(&mut pins, 0x0100|(self.sp as u16));self.sp+=1;self.sr = super::StatusRegister::from_bits_truncate((super::gd(&pins)|super::StatusRegister::B.bits)&!super::StatusRegister::X.bits);')
     # load return address high byte from stack
-    o.t('sa(&mut pins, 0x0100|(self.sp as u16));self.adl_adh = gd(&pins) as u16;')
+    o.t('super::sa(&mut pins, 0x0100|(self.sp as u16));self.adl_adh = super::gd(&pins) as u16;')
     # update PC (which is already placed on the right return-to instruction)
-    o.t('self.pc = ((gd(&pins) as u16)<<8)|self.adl_adh;')
+    o.t('self.pc = ((super::gd(&pins) as u16)<<8)|self.adl_adh;')
 
 #-------------------------------------------------------------------------------
 def i_ora(o):
     cmt(o,'ORA')
-    o.t('self.ac|=gd(&pins);self.nz(self.ac);')
+    o.t('self.ac|=super::gd(&pins);self.nz(self.ac);')
 
 #-------------------------------------------------------------------------------
 def i_and(o):
     cmt(o,'AND')
-    o.t('self.ac&=gd(&pins);self.nz(self.ac);')
+    o.t('self.ac&=super::gd(&pins);self.nz(self.ac);')
 
 #-------------------------------------------------------------------------------
 def i_eor(o):
     cmt(o,'EOR')
-    o.t('self.ac^=gd(&pins);self.nz(self.ac);')
+    o.t('self.ac^=super::gd(&pins);self.nz(self.ac);')
 
 #-------------------------------------------------------------------------------
 def i_adc(o):
     cmt(o,'ADC')
-    o.t('self.adc(gd(&pins));')
+    o.t('self.adc(super::gd(&pins));')
 
 #-------------------------------------------------------------------------------
 def i_sbc(o):
     cmt(o,'SBC')
-    o.t('self.sbc(gd(&pins));')
+    o.t('self.sbc(super::gd(&pins));')
 
 #-------------------------------------------------------------------------------
 def u_sbc(o):
     u_cmt(o,'SBC')
-    o.t('self.sbc(gd(&pins));')
+    o.t('self.sbc(super::gd(&pins));')
 
 #-------------------------------------------------------------------------------
 def i_cmp(o):
     cmt(o,'CMP')
-    o.t('self.cmp(self.ac, gd(&pins));')
+    o.t('self.cmp(self.ac, super::gd(&pins));')
 
 #-------------------------------------------------------------------------------
 def i_cpx(o):
     cmt(o,'CPX')
-    o.t('self.cmp(self.x, gd(&pins));')
+    o.t('self.cmp(self.x, super::gd(&pins));')
 
 #-------------------------------------------------------------------------------
 def i_cpy(o):
     cmt(o,'CPY')
-    o.t('self.cmp(self.y, gd(&pins));')
+    o.t('self.cmp(self.y, super::gd(&pins));')
 
 #-------------------------------------------------------------------------------
 def u_dcp(o):
     # undocumented 'decrement and compare'
     u_cmt(o,'DCP')
-    o.t('self.adl_adh = gd(&pins) as u16;wr(&mut pins);')
-    o.t('self.adl_adh-=1;self.nz(self.adl_adh as u8);sd(&mut pins, self.adl_adh as u8);self.cmp(self.ac, self.adl_adh as u8);wr(&mut pins);')
+    o.t('self.adl_adh = super::gd(&pins) as u16;super::wr(&mut pins);')
+    o.t('self.adl_adh-=1;self.nz(self.adl_adh as u8);super::sd(&mut pins, self.adl_adh as u8);self.cmp(self.ac, self.adl_adh as u8);super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def x_sbx(o):
     u_cmt(o,'SBX')
-    o.t('self.sbx(gd(&pins));')
+    o.t('self.sbx(super::gd(&pins));')
 
 #-------------------------------------------------------------------------------
 def i_dec(o):
     cmt(o,'DEC')
-    o.t('self.adl_adh = gd(&pins) as u16;wr(&mut pins);')
-    o.t('self.adl_adh-=1; self.nz(self.adl_adh as u8);sd(&mut pins, self.adl_adh as u8);wr(&mut pins);')
+    o.t('self.adl_adh = super::gd(&pins) as u16;super::wr(&mut pins);')
+    o.t('self.adl_adh-=1; self.nz(self.adl_adh as u8);super::sd(&mut pins, self.adl_adh as u8);super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def i_inc(o):
     cmt(o,'INC')
-    o.t('self.adl_adh = gd(&pins) as u16;wr(&mut pins);')
-    o.t('self.adl_adh+=1; self.nz(self.adl_adh as u8);sd(&mut pins, self.adl_adh as u8);wr(&mut pins);')
+    o.t('self.adl_adh = super::gd(&pins) as u16;super::wr(&mut pins);')
+    o.t('self.adl_adh+=1; self.nz(self.adl_adh as u8);super::sd(&mut pins, self.adl_adh as u8);super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def i_dex(o):
@@ -540,14 +541,14 @@ def i_iny(o):
 def u_isb(o):
     # undocumented INC+SBC instruction
     u_cmt(o,'ISB')
-    o.t('self.adl_adh = gd(&pins) as u16;wr(&mut pins);')
-    o.t('self.adl_adh+=1;sd(&mut pins, self.adl_adh as u8); self.sbc(self.adl_adh as u8);wr(&mut pins);')
+    o.t('self.adl_adh = super::gd(&pins) as u16;super::wr(&mut pins);')
+    o.t('self.adl_adh+=1;super::sd(&mut pins, self.adl_adh as u8); self.sbc(self.adl_adh as u8);super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def i_asl(o):
     cmt(o,'ASL')
-    o.t('self.adl_adh = gd(&pins) as u16;wr(&mut pins);')
-    o.t('sd(&mut pins, self.asl(self.adl_adh as u8));wr(&mut pins);')
+    o.t('self.adl_adh = super::gd(&pins) as u16;super::wr(&mut pins);')
+    o.t('super::sd(&mut pins, self.asl(self.adl_adh as u8));super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def i_asla(o):
@@ -557,8 +558,8 @@ def i_asla(o):
 #-------------------------------------------------------------------------------
 def i_lsr(o):
     cmt(o,'LSR')
-    o.t('self.adl_adh = gd(&pins) as u16;wr(&mut pins);')
-    o.t('sd(&mut pins, self.lsr(self.adl_adh as u8));wr(&mut pins);')
+    o.t('self.adl_adh = super::gd(&pins) as u16;super::wr(&mut pins);')
+    o.t('super::sd(&mut pins, self.lsr(self.adl_adh as u8));super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def i_lsra(o):
@@ -569,27 +570,27 @@ def i_lsra(o):
 def u_slo(o):
     # undocumented ASL+OR
     u_cmt(o,'SLO')
-    o.t('self.adl_adh = gd(&pins) as u16;wr(&mut pins);')
-    o.t('self.adl_adh = self.asl(self.adl_adh as u8) as u16;sd(&mut pins, self.adl_adh as u8); self.ac|=(self.adl_adh as u8);self.nz(self.ac);wr(&mut pins);')
+    o.t('self.adl_adh = super::gd(&pins) as u16;super::wr(&mut pins);')
+    o.t('self.adl_adh = self.asl(self.adl_adh as u8) as u16;super::sd(&mut pins, self.adl_adh as u8); self.ac|=self.adl_adh as u8;self.nz(self.ac);super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def x_asr(o):
     # undocumented AND+LSR
     u_cmt(o, 'ASR')
-    o.t('self.ac=gd(&pins);self.ac = self.asl(self.ac);')
+    o.t('self.ac=super::gd(&pins);self.ac = self.asl(self.ac);')
 
 #-------------------------------------------------------------------------------
 def u_sre(o):
     # undocumented LSR+EOR
     u_cmt(o,'SRE')
-    o.t('self.adl_adh = gd(&pins) as u16;wr(&mut pins);')
-    o.t('self.adl_adh = self.lsr(self.adl_adh as u8) as u16;sd(&mut pins, self.adl_adh as u8); self.ac^=(self.adl_adh as u8);self.nz(self.ac);wr(&mut pins);')
+    o.t('self.adl_adh = super::gd(&pins) as u16;super::wr(&mut pins);')
+    o.t('self.adl_adh = self.lsr(self.adl_adh as u8) as u16;super::sd(&mut pins, self.adl_adh as u8); self.ac^=self.adl_adh as u8;self.nz(self.ac);super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def i_rol(o):
     cmt(o,'ROL')
-    o.t('self.adl_adh = gd(&pins) as u16;wr(&mut pins);')
-    o.t('sd(&mut pins, self.rol(self.adl_adh as u8));wr(&mut pins);')
+    o.t('self.adl_adh = super::gd(&pins) as u16;super::wr(&mut pins);')
+    o.t('super::sd(&mut pins, self.rol(self.adl_adh as u8));super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def i_rola(o):
@@ -600,14 +601,14 @@ def i_rola(o):
 def u_rla(o):
     # uncodumented ROL+AND
     u_cmt(o,'RLA')
-    o.t('self.adl_adh = gd(&pins) as u16;wr(&mut pins);')
-    o.t('self.adl_adh = self.rol(self.adl_adh as u8) as u16;sd(&mut pins, self.adl_adh as u8);self.ac &=(self.adl_adh as u8);self.nz(self.ac);wr(&mut pins);')
+    o.t('self.adl_adh = super::gd(&pins) as u16;super::wr(&mut pins);')
+    o.t('self.adl_adh = self.rol(self.adl_adh as u8) as u16;super::sd(&mut pins, self.adl_adh as u8);self.ac &=self.adl_adh as u8;self.nz(self.ac);super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def i_ror(o):
     cmt(o,'ROR')
-    o.t('self.adl_adh = gd(&pins) as u16;wr(&mut pins);')
-    o.t('sd(&mut pins, self.ror(self.adl_adh as u8));wr(&mut pins);')
+    o.t('self.adl_adh = super::gd(&pins) as u16;super::wr(&mut pins);')
+    o.t('super::sd(&mut pins, self.ror(self.adl_adh as u8));super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def i_rora(o):
@@ -618,20 +619,20 @@ def i_rora(o):
 def u_rra(o):
     # undocumented ROR+ADC
     u_cmt(o,'RRA')
-    o.t('self.adl_adh = gd(&pins) as u16;wr(&mut pins);')
-    o.t('self.adl_adh = self.ror(self.adl_adh as u8) as u16;sd(&mut pins, self.adl_adh as u8);self.adc(self.adl_adh as u8);wr(&mut pins);')
+    o.t('self.adl_adh = super::gd(&pins) as u16;super::wr(&mut pins);')
+    o.t('self.adl_adh = self.ror(self.adl_adh as u8) as u16;super::sd(&mut pins, self.adl_adh as u8);self.adc(self.adl_adh as u8);super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def x_arr(o):
     # undocumented AND+ROR
     u_cmt(o,'ARR')
-    o.t('self.ac=gd(&pins);self.arr();')
+    o.t('self.ac=super::gd(&pins);self.arr();')
 
 #-------------------------------------------------------------------------------
 def x_ane(o):
     # undocumented ANE
     u_cmt(o,'ANE')
-    o.t('self.ac = (self.ac|0xEE)&self.x&gd(&pins);self.nz(self.ac);')
+    o.t('self.ac = (self.ac|0xEE)&self.x&super::gd(&pins);self.nz(self.ac);')
 
 #-------------------------------------------------------------------------------
 def x_sha(o):
@@ -640,7 +641,7 @@ def x_sha(o):
     #  the operand +1 in memory
     #
     u_cmt(o,'SHA')
-    o.ta('let zz = (((ga(&mut pins) >> 8) + 1) as u8);sd(&mut pins, self.ac & self.x & zz);wr(&mut pins);')
+    o.ta('let zz = ((super::ga(&pins) >> 8) + 1) as u8;super::sd(&mut pins, self.ac & self.x & zz);super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def x_shx(o):
@@ -649,7 +650,7 @@ def x_shx(o):
     # argument + 1. Store the result in memory.
     #
     u_cmt(o, 'SHX')
-    o.ta('let zz = (((ga(&mut pins) >> 8) + 1) as u8);sd(&mut pins, self.x & zz);wr(&mut pins);')
+    o.ta('let zz = ((super::ga(&pins) >> 8) + 1) as u8;super::sd(&mut pins, self.x & zz);super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def x_shy(o):
@@ -658,7 +659,7 @@ def x_shy(o):
     # argument + 1. Store the result in memory.
     #
     u_cmt(o, 'SHY')
-    o.ta('let zz = (((ga(&mut pins) >> 8) + 1) as u8);sd(&mut pins, self.y & zz);wr(&mut pins);')
+    o.ta('let zz = ((super::ga(&pins) >> 8) + 1) as u8;super::sd(&mut pins, self.y & zz);super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def x_shs(o):
@@ -668,7 +669,7 @@ def x_shs(o):
     # argument + 1. Store result in memory.
     #
     u_cmt(o, 'SHS')
-    o.ta('self.sp=self.ac & self.x;let zz = (((ga(&mut pins) >> 8) + 1) as u8);sd(&mut pins, self.sp&zz);wr(&mut pins);')
+    o.ta('self.sp=self.ac & self.x;let zz = ((super::ga(&pins) >> 8) + 1) as u8;super::sd(&mut pins, self.sp&zz);super::wr(&mut pins);')
 
 #-------------------------------------------------------------------------------
 def x_anc(o):
@@ -676,7 +677,7 @@ def x_anc(o):
     # AND byte with accumulator. If result is negative then carry is set.
     #
     u_cmt(o, 'ANC')
-    o.t('self.ac = gd(&pins);self.nz(self.ac);self.sr.set(StatusRegister::C, (self.ac&0x80)!=0);')
+    o.t('self.ac = super::gd(&pins);self.nz(self.ac);self.sr.set(super::StatusRegister::C, (self.ac&0x80)!=0);')
 
 #-------------------------------------------------------------------------------
 def x_las(o):
@@ -685,19 +686,19 @@ def x_las(o):
     # register and stack pointer.
     #
     u_cmt(o, 'LAS')
-    o.t('let zz = gd(&pins)&self.sp;self.ac=zz;self.x=zz;self.sp=zz;self.nz(self.ac);')
+    o.t('let zz = super::gd(&pins)&self.sp;self.ac=zz;self.x=zz;self.sp=zz;self.nz(self.ac);')
 
 #-------------------------------------------------------------------------------
 def x_jam(o):
     # undocumented JAM, next opcode byte read, data and addr bus set to all 1, execution stops
     u_cmt(o, 'JAM')
-    o.t('sa(&mut pins, self.pc);')
-    o.t('sad(&mut pins, 0xFFFF,0xFF);self.ir-=1;')
+    o.t('super::sa(&mut pins, self.pc);')
+    o.t('super::sad(&mut pins, 0xFFFF,0xFF);self.ir-=1;')
 
 #-------------------------------------------------------------------------------
 def i_bit(o):
     cmt(o,'BIT')
-    o.t('self.bit(gd(&pins));')
+    o.t('self.bit(super::gd(&pins));')
 
 #-------------------------------------------------------------------------------
 def enc_op(op):
@@ -844,9 +845,9 @@ def enc_op(op):
             else:           u_isb(o)
     # fetch next opcode byte
     if mem_access in [M_R_,M___]:
-        o.ta('fetch(&mut pins, self.pc);')
+        o.ta('super::fetch(&mut pins, self.pc);')
     else:
-        o.t('fetch(&mut pins, self.pc);')
+        o.t('super::fetch(&mut pins, self.pc);')
     return o
 
 #-------------------------------------------------------------------------------
