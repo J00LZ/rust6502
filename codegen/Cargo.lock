@@ -14,11 +14,3 @@ version = "0.1.0"
 dependencies = [
  "bitflags",
 ]
-
-[[package]]
-name = "rust6502"
-version = "0.1.0"
-dependencies = [
- "bitflags",
- "codegen",
-]
