@@ -1328,7 +1328,21 @@ pub fn codegen(_: TokenStream) -> TokenStream {
     for op in 0..256 {
         enc_op(op).write_op(&mut code);
     }
-    ("use std::ops::BitAnd;impl CPU {\n    fn the_match_statement(&mut self, mut pins: Pins){\n    match 0 {\n        ".to_owned() + code.as_str() +"\n         _ => panic!(\n        \"This instruction does not exist: {:#04X}|{}!\",\n        self.ir >> 3,\n        self.ir & 7\n      ),\n    }\n  }\n}").parse().unwrap()
+    //.parse().unwrap()
+    format!(r#"
+use std::ops::BitAnd;
+impl CPU {{
+    fn the_match_statement(&mut self, mut pins: Pins){{
+        match 0 {{
+                {}
+                _ => panic!(
+                        "This instruction does not exist: {{:#04X}}|{{}}!",
+                        self.ir >> 3,
+                        self.ir & 7
+                        ),
+        }}
+    }}
+}}"#, code).parse().unwrap()
 }
 
 #[cfg(test)]
