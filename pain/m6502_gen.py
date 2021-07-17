@@ -1,6 +1,7 @@
 #-------------------------------------------------------------------------------
 #   m6502_decoder.py
 #   Generate instruction decoder for m6502.h emulator.
+#   Borrowed (stolen) from https://github.com/floooh/chips/blob/master/codegen/m6502_gen.py
 #-------------------------------------------------------------------------------
 import sys
 from string import Template
