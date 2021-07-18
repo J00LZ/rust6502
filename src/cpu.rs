@@ -3,6 +3,7 @@ use std::num::Wrapping;
 
 pub mod instructions;
 
+#[derive(Debug)]
 pub struct CPU {
     pub pc: u16,
     pub ac: u8,
@@ -19,13 +20,13 @@ pub struct CPU {
     adl_adh: u16,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum ReadWrite {
     Read,
     Write,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum PinFlags {
     Sync,
     Irq,
@@ -34,7 +35,7 @@ pub enum PinFlags {
     Res,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Pins {
     pub data: u8,
     pub address: u16,
@@ -91,12 +92,12 @@ bitflags! {
     }
 }
 
-fn fetch(pins: &mut Pins, pc: u16) {
-    sa(pins, pc);
-    on(pins, PinFlags::Sync);
+fn fetch(mut pins: &mut Pins, pc: u16) {
+    sa(&mut pins, pc);
+    on(&mut pins, PinFlags::Sync);
 }
 
-fn sa(pins: &mut Pins, addr: u16) {
+fn sa(mut pins: &mut Pins, addr: u16) {
     pins.address = addr;
 }
 
@@ -104,12 +105,12 @@ fn ga(pins: &Pins) -> u16 {
     pins.address
 }
 
-fn sad(pins: &mut Pins, addr: u16, data: u8) {
+fn sad(mut pins: &mut Pins, addr: u16, data: u8) {
     pins.address = addr;
     pins.data = data;
 }
 
-fn sd(pins: &mut Pins, data: u8) {
+fn sd(mut pins: &mut Pins, data: u8) {
     pins.data = data;
 }
 
@@ -117,7 +118,7 @@ fn gd(pins: &Pins) -> u8 {
     pins.data
 }
 
-fn on(pins: &mut Pins, x: PinFlags) {
+fn on(mut pins: &mut Pins, x: PinFlags) {
     match x {
         PinFlags::Sync => pins.sync = true,
         PinFlags::Irq => pins.irq = true,
@@ -127,7 +128,7 @@ fn on(pins: &mut Pins, x: PinFlags) {
     }
 }
 
-fn off(pins: &mut Pins, x: PinFlags) {
+fn off(mut pins: &mut Pins, x: PinFlags) {
     match x {
         PinFlags::Sync => pins.sync = false,
         PinFlags::Irq => pins.irq = false,
@@ -137,11 +138,11 @@ fn off(pins: &mut Pins, x: PinFlags) {
     }
 }
 
-fn rd(pins: &mut Pins) {
+fn rd(mut pins: &mut Pins) {
     pins.rw = ReadWrite::Read;
 }
 
-fn wr(pins: &mut Pins) {
+fn wr(mut pins: &mut Pins) {
     pins.rw = ReadWrite::Write;
 }
 
@@ -196,7 +197,7 @@ impl CPU {
                 return pins;
             }
             if pins.sync {
-                self.ir = pins.address << 3;
+                self.ir = (gd(&pins) as u16) << 3;
                 off(&mut pins, PinFlags::Sync);
                 if self.irq_pip & 4 != 0 {
                     self.brk_flags.insert(BreakFlags::IRQ);
@@ -220,7 +221,16 @@ impl CPU {
         }
         rd(&mut pins);
 
-        self.the_match_statement(pins);
+        println!(
+            "going to execute {:#04X} step {}",
+            self.ir >> 3,
+            self.ir & 7
+        );
+        // println!("new ad: {:#06X}, {:#04X}", pins.address, pins.data);
+        self.the_match_statement(&mut pins);
+        // println!("new ad: {:#06X}, {:#04X}", pins.address, pins.data);
+
+        println!("self={:?}, pins={:?}", self, pins);
 
         self.ir += 1;
 
