@@ -27,7 +27,7 @@ pub trait Device {
     fn write(&mut self, address: u16, data: u8) -> Result<(), WriteError>;
 }
 
-impl Device for [u8; 65536] {
+impl<const N: usize> Device for [u8; N] {
     fn read(&self, address: u16) -> Option<u8> {
         Some(self[address as usize])
     }

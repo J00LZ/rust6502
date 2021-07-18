@@ -1,3 +1,5 @@
+use crate::device::Device;
+
 pub struct Ram {
     start: u16,
     data: Vec<u8>,
@@ -12,7 +14,7 @@ impl Ram {
     }
 }
 
-impl super::Device for Ram {
+impl Device for Ram {
     fn read(&self, address: u16) -> Option<u8> {
         if address < self.start || self.start + (self.data.len() as u16) >= address {
             None

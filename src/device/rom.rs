@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::fs;
-use crate::device::CreateError;
+use crate::device::{CreateError, Device};
 
 pub struct Rom {
     start: u16,
@@ -14,7 +14,7 @@ impl Rom {
     }
 }
 
-impl super::Device for Rom {
+impl Device for Rom {
     fn read(&self, address: u16) -> Option<u8> {
         if address < self.start || self.start + (self.data.len() as u16) >= address {
             None

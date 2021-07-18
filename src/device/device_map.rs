@@ -1,7 +1,7 @@
-use crate::device::WriteError;
+use crate::device::{WriteError, Device};
 
 pub struct DeviceMap<'t> {
-    map: Vec<&'t dyn super::Device>,
+    map: Vec<&'t dyn Device>,
 }
 
 impl DeviceMap<'_> {
@@ -9,12 +9,12 @@ impl DeviceMap<'_> {
         Self { map: vec![] }
     }
 
-    pub fn add<T: super::Device>(&mut self, dev: &T) {
+    pub fn add<T: Device>(&mut self, dev: &T) {
         self.map.push(dev)
     }
 }
 
-impl super::Device for DeviceMap<'_> {
+impl Device for DeviceMap<'_> {
     fn read(&self, address: u16) -> Option<u8> {
         for d in self.map {
             let r = d.read(address);

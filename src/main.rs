@@ -3,7 +3,7 @@ use std::borrow::{Borrow, BorrowMut};
 use std::error::Error;
 
 pub mod cpu;
-pub mod device;
+mod device;
 
 fn main() -> Result<(), CreateError> {
     println!("rust6502");
