@@ -15,8 +15,8 @@ impl<'t> DeviceMap {
 }
 
 impl<'t> Device for DeviceMap {
-    fn read(&self, address: u16) -> Option<u8> {
-        for dev in &self.devices {
+    fn read(&mut self, address: u16) -> Option<u8> {
+        for dev in &mut self.devices {
             match dev.read(address) {
                 None => {}
                 Some(x) => return x.into(),

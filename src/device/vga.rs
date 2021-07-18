@@ -1,24 +1,63 @@
+use crate::device::{Device, WriteError};
 use olc_pixel_game_engine as olc;
-use std::sync::{Mutex, Arc};
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
 
 pub mod vecs;
 
-// use super::Device;
-//
-// pub struct VGA {
-//
-// }
+pub struct KeyUpdate(olc::Key, bool);
 
-// Very simple example application that prints "Hello, World!" on screen.
+pub struct Keyboard {
+    keys: Arc<Mutex<VecDeque<KeyUpdate>>>,
+    addr: u16,
+}
+
+impl Keyboard {
+    pub fn new(addr: u16, keys: Arc<Mutex<VecDeque<KeyUpdate>>>) -> Self {
+        Self { keys, addr }
+    }
+}
+
+impl Device for Keyboard {
+    fn read(&mut self, address: u16) -> Option<u8> {
+        if address == self.addr {
+            let mut k = self.keys.lock().unwrap();
+            match k.pop_front() {
+                None => return Some(0),
+                Some(kv) => {
+                    for (idx, key) in vecs::KEYS.iter().enumerate() {
+                        if key.clone() == kv.0 {
+                            return if kv.1 {
+                                k.push_front(KeyUpdate(kv.0, false));
+                                Some(0xE0)
+                            } else {
+                                Some(idx as u8)
+                            };
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    fn write(&mut self, _: u16, _: u8) -> Result<(), WriteError> {
+        Ok(())
+    }
+}
 
 pub struct VGA {
     font: psf::Font,
-    keys: Vec<olc::Key>,
+    keys: Arc<Mutex<VecDeque<KeyUpdate>>>,
     mem: Arc<Mutex<super::Ram>>,
 }
 
 impl VGA {
-    pub fn new(font: psf::Font, keys: Vec<olc::Key>, mem: Arc<Mutex<super::Ram>>) -> Self {
+    pub fn new(
+        font: psf::Font,
+        keys: Arc<Mutex<VecDeque<KeyUpdate>>>,
+        mem: Arc<Mutex<super::Ram>>,
+    ) -> Self {
         Self { font, keys, mem }
     }
 
@@ -58,7 +97,7 @@ impl VGA {
         // olc::draw_partial_sprite(x * 8, y * 14, &self.spr, char * 8, 0, 8, 14)
     }
 
-    fn draw_string(&self, x: i32, y: i32, text: &str, colors: u8) {
+    fn _draw_string(&self, x: i32, y: i32, text: &str, colors: u8) {
         for (idx, c) in text.char_indices() {
             self.draw((idx as i32) + x, y, c as u8, colors)
         }
@@ -93,9 +132,16 @@ impl olc::Application for VGA {
                 self.draw(x, y, mem.data[i as usize], mem.data[i as usize + 1])
             }
         }
-        for (i, k) in vecs::KEYS.iter().enumerate() {
-            let _i = i as u8;
-            let _state = olc::get_key(k.clone());
+        for k in vecs::KEYS {
+            let state = olc::get_key(k);
+            if state.pressed {
+                let mut ksr = self.keys.lock().unwrap();
+                ksr.push_back(KeyUpdate(k, false))
+            }
+            if state.released {
+                let mut ksr = self.keys.lock().unwrap();
+                ksr.push_back(KeyUpdate(k, true))
+            }
         }
         Ok(())
     }

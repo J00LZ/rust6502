@@ -16,7 +16,7 @@ impl Ram {
 }
 
 impl Device for Ram {
-    fn read(&self, address: u16) -> Option<u8> {
+    fn read(&mut self, address: u16) -> Option<u8> {
         let cc = self.start + min(self.data.len() as u16, 0xFFFF);
         if address < self.start || address >= cc {
             None

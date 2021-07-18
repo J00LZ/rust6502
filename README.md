@@ -8,4 +8,6 @@ probably the worst color scheme I've ever seen.
 
 I used `vasm` to compile the `example.s` file, with this command: `vasm -Fbin -o example -dotdir ./example.s`.
 
-Next on the list of things to add is keyboard handling, which is going to be :sparkles: fun :sparkles: !
+~~Next on the list of things to add is keyboard handling, which is going to be :sparkles: fun :sparkles: !~~
+
+So turns out keyboard handling was actually rather easy? tl;dr: we have keyboard now!

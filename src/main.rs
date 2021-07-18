@@ -1,6 +1,7 @@
 use crate::device::{CreateError, Device, WriteError};
 use olc_pixel_game_engine as olc;
-use std::sync::{Mutex, Arc};
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 pub mod cpu;
@@ -9,13 +10,12 @@ mod device;
 fn main() -> Result<(), CreateError> {
     println!("rust6502");
 
-    // device::vga::display();
-
     let font = psf::Font::new("./assets/koi8-14.psf").unwrap();
-    let keys = vec![];
+    let keys = Arc::new(Mutex::new(VecDeque::new()));
+    let keys_clone = Arc::clone(&keys);
     let vram = Arc::new(Mutex::new(device::Ram::new(0x400, 4000)));
     let vram_clone = Arc::clone(&vram);
-    let mut vga = device::vga::VGA::new(font, keys, vram_clone);
+    let mut vga = device::vga::VGA::new(font, keys_clone, vram_clone);
     let running = Arc::new(Mutex::new(true));
     let running_clone = Arc::clone(&running);
 
@@ -24,20 +24,19 @@ fn main() -> Result<(), CreateError> {
         let mut x = running_clone.lock().unwrap();
         *x = false;
     });
-
+    let keyboard = device::vga::Keyboard::new(0x1400, keys);
     let ram = device::Ram::new(0, 0x0400);
     let rom = device::Rom::new_file(0x8000, "./code/example")?;
     let mapp = &mut device::device_map::DeviceMap::new();
     mapp.add(ram);
     mapp.add(rom);
     mapp.add(vram);
+    mapp.add(keyboard);
 
     let mut cpu = cpu::CPU::new();
     let mut pins = cpu.pins;
-    // return Ok(());
     while *running.lock().unwrap() {
         pins = cpu.tick(pins);
-        // println!("Addr = {}, data = {}", pins.address, pins.data);
         let addr = pins.address;
         if pins.rw == cpu::ReadWrite::Read {
             match mapp.read(addr) {

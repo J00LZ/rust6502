@@ -25,12 +25,12 @@ pub enum CreateError {
 }
 
 pub trait Device {
-    fn read(&self, address: u16) -> Option<u8>;
+    fn read(&mut self, address: u16) -> Option<u8>;
     fn write(&mut self, address: u16, data: u8) -> Result<(), WriteError>;
 }
 
 impl<const N: usize> Device for [u8; N] {
-    fn read(&self, address: u16) -> Option<u8> {
+    fn read(&mut self, address: u16) -> Option<u8> {
         self.get(address as usize).copied()
     }
 
@@ -44,8 +44,8 @@ impl<const N: usize> Device for [u8; N] {
 }
 
 impl<T: Device> Device for Arc<Mutex<T>> {
-    fn read(&self, address: u16) -> Option<u8> {
-        let s = self.lock().unwrap();
+    fn read(&mut self, address: u16) -> Option<u8> {
+        let mut s = self.lock().unwrap();
         s.read(address)
     }
 

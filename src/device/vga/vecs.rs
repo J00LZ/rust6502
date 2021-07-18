@@ -19,7 +19,7 @@ pub const COLORS: [Pixel; 16] = [
     Pixel::rgb(0xFF, 0xFF, 0xFF),
 ];
 
-pub const KEYS: [olc::Key; 85] = [
+pub const KEYS: [olc::Key; 0x55] = [
     olc::Key::NONE,
     olc::Key::A,
     olc::Key::B,
