@@ -3,7 +3,7 @@ use std::cmp::min;
 
 pub struct Ram {
     start: u16,
-    data: Vec<u8>,
+    pub(crate) data: Vec<u8>,
 }
 
 impl Ram {
@@ -26,7 +26,7 @@ impl Device for Ram {
     }
 
     fn write(&mut self, address: u16, data: u8) -> Result<(), WriteError> {
-        if address < self.start || self.start + (self.data.len() as u16) >= address {
+        if address < self.start || address >= self.start + (self.data.len() as u16) {
             Err(WriteError::InvalidAddress)
         } else {
             self.data[(address - self.start) as usize] = data;

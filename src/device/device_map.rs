@@ -9,8 +9,8 @@ impl<'t> DeviceMap {
         Self { devices: vec![] }
     }
 
-    pub fn add<T: 'static + Device>(&mut self, ram: T) {
-        self.devices.push(Box::new(ram));
+    pub fn add<T: 'static + Device>(&mut self, device: T) {
+        self.devices.push(Box::new(device));
     }
 }
 
