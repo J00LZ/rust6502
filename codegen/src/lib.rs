@@ -594,7 +594,7 @@ impl Opcode {
     //-------------------------------------------------------------------------------
     fn i_brk(&mut self) {
         self.cmt("BRK");
-        self.t("if !self.brk_flags.contains(BreakFlags::NMI) && !self.brk_flags.contains(BreakFlags::IRQ) { self.pc += 1;                }                sad(&mut pins, 0x0100 | self.sp as u16, (self.pc >> 8) as u8);                self.sp = (Wrapping(self.sp) - Wrapping(1)).0;                if !self.brk_flags.contains(BreakFlags::RESET) {                    wr(&mut pins)                }           ");
+        self.t("if !self.brk_flags.contains(BreakFlags::NMI|BreakFlags::IRQ) { self.pc += 1; } sad(&mut pins, 0x0100 | self.sp as u16, (self.pc >> 8) as u8); self.sp = (Wrapping(self.sp) - Wrapping(1)).0; if !self.brk_flags.contains(BreakFlags::RESET) { wr(&mut pins)}");
         self.t("sad(&mut pins, 0x0100 | self.sp as u16, (self.pc) as u8);self.sp = (Wrapping(self.sp) - Wrapping(1)).0;if !self.brk_flags.contains(BreakFlags::RESET) {wr(&mut pins)}");
         self.t("sad(&mut pins, 0x0100 | self.sp as u16, self.sr.bits | StatusRegister::X.bits);self.sp = (Wrapping(self.sp) - Wrapping(1)).0;if self.brk_flags.contains(BreakFlags::RESET) {self.adl_adh = 0xFFFC;} else {wr(&mut pins);if self.brk_flags.contains(BreakFlags::NMI) {self.adl_adh = 0xFFFA} else {self.adl_adh = 0xFFFE}}");
         self.t("sa(&mut pins, self.adl_adh);self.adl_adh += 1;self.sr.set(StatusRegister::I | StatusRegister::B, true);self.brk_flags = BreakFlags::empty();");
@@ -1332,7 +1332,7 @@ pub fn codegen(_: TokenStream) -> TokenStream {
     format!(r#"
 use std::ops::BitAnd;
 impl CPU {{
-    fn the_match_statement(&mut self, mut pins: Pins){{
+    fn the_match_statement(&mut self, mut pins: &mut Pins){{
         match 0 {{
                 {}
                 _ => panic!(

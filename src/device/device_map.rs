@@ -1,40 +1,34 @@
-use crate::device::WriteError;
+use super::*;
 
-pub struct DeviceMap<'t> {
-    map: Vec<&'t dyn super::Device>,
+pub struct DeviceMap {
+    devices: Vec<Box<dyn Device>>,
 }
 
-impl DeviceMap<'_> {
+impl<'t> DeviceMap {
     pub fn new() -> Self {
-        Self { map: vec![] }
+        Self { devices: vec![] }
     }
 
-    pub fn add<T: super::Device>(&mut self, dev: &T) {
-        self.map.push(dev)
+    pub fn add<T: 'static + Device>(&mut self, ram: T) {
+        self.devices.push(Box::new(ram));
     }
 }
 
-impl super::Device for DeviceMap<'_> {
+impl<'t> Device for DeviceMap {
     fn read(&self, address: u16) -> Option<u8> {
-        for d in self.map {
-            let r = d.read(address);
-            if r != None {
-                return r;
+        for dev in &self.devices {
+            match dev.read(address) {
+                None => {}
+                Some(x) => return x.into(),
             }
         }
         None
     }
 
     fn write(&mut self, address: u16, data: u8) -> Result<(), WriteError> {
-        for mut d in self.map {
-            let r = d.write(address, data);
-            match r {
-                Ok(_) => {}
-                Err(WriteError::InvalidAddress) => {}
-                Err(WriteError::NotWritable) => {}
-            }
+        for dev in &mut self.devices {
+            let _ = dev.write(address, data);
         }
-
         Ok(())
     }
 }

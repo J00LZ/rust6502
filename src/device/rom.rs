@@ -1,6 +1,7 @@
-use std::error::Error;
 use std::fs;
-use crate::device::CreateError;
+
+use super::{CreateError, Device, WriteError};
+use std::cmp::min;
 
 pub struct Rom {
     start: u16,
@@ -14,16 +15,21 @@ impl Rom {
     }
 }
 
-impl super::Device for Rom {
+impl Device for Rom {
     fn read(&self, address: u16) -> Option<u8> {
-        if address < self.start || self.start + (self.data.len() as u16) >= address {
+        let cc = min(self.start as usize + self.data.len(), 0xFFFF) as u16;
+        // println!(
+        //     "min: {:#06X}, max: {:#06X}, r = {:#06X}",
+        //     self.start, cc, address
+        // );
+        if address < self.start || address >= cc {
             None
         } else {
             Some(self.data[(address - self.start) as usize])
         }
     }
 
-    fn write(&mut self, _: u16, _: u8) -> Result<(), super::WriteError> {
-        Err(super::WriteError::NotWritable)
+    fn write(&mut self, _: u16, _: u8) -> Result<(), WriteError> {
+        Err(WriteError::NotWritable)
     }
 }

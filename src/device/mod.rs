@@ -1,9 +1,8 @@
 use thiserror::Error;
-use std::fmt::{Display, Formatter};
 
+pub mod device_map;
 pub mod ram;
 pub mod rom;
-pub mod device_map;
 
 pub use ram::Ram;
 pub use rom::Rom;
@@ -22,18 +21,20 @@ pub enum CreateError {
     FsError(#[from] std::io::Error),
 }
 
+
 pub trait Device {
     fn read(&self, address: u16) -> Option<u8>;
     fn write(&mut self, address: u16, data: u8) -> Result<(), WriteError>;
 }
 
-impl Device for [u8; 65536] {
+impl<const N: usize> Device for [u8; N] {
     fn read(&self, address: u16) -> Option<u8> {
-        Some(self[address as usize])
+        self.get(address as usize).copied()
     }
 
     fn write(&mut self, address: u16, data: u8) -> Result<(), WriteError> {
-        self[address as usize] = data;
+        let d = self.get_mut(address as usize).ok_or(WriteError::InvalidAddress)?;
+        *d = data;
         return Ok(());
     }
 }
