@@ -1,6 +1,7 @@
 use crate::device::{CreateError, Device, WriteError};
 use olc_pixel_game_engine as olc;
 use std::collections::VecDeque;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -13,35 +14,38 @@ fn main() -> Result<(), CreateError> {
     let font = psf::Font::new("./assets/koi8-14.psf").unwrap();
     let keys = Arc::new(Mutex::new(VecDeque::new()));
     let keys_clone = Arc::clone(&keys);
-    let vram = Arc::new(Mutex::new(device::Ram::new(0x400, 4000)));
+    let vram = Arc::new(Mutex::new(device::Ram::new(0x500, 0x1000)));
     let vram_clone = Arc::clone(&vram);
-    let mut vga = device::vga::VGA::new(font, keys_clone, vram_clone);
-    let running = Arc::new(Mutex::new(true));
+    let mut vga = device::vga::Vga::new(font, keys_clone, vram_clone);
+    let running = Arc::new(AtomicBool::new(true));
     let running_clone = Arc::clone(&running);
 
     let jh = thread::spawn(move || {
         olc::start("rust6502", &mut vga, 8 * 80, 14 * 25, 4, 4).unwrap();
-        let mut x = running_clone.lock().unwrap();
-        *x = false;
+        running_clone.store(false, Ordering::Release);
     });
-    let keyboard = device::vga::Keyboard::new(0x1400, keys);
-    let ram = device::Ram::new(0, 0x0400);
-    let rom = device::Rom::new_file(0x8000, "./code/example")?;
+    let keyboard = device::vga::Keyboard::new(0x10, keys);
+    let ram = device::Ram::new(0x0100, 0x0400);
+    let rom = device::Rom::new_file(0x8000, "./code/bin/example2")?;
+    let kernel = device::Rom::new_file(0xE000, "./code/bin/kernel")?;
+    let interrupts = device::Rom::interrupts(0, 0xE000, 0);
+
     let mapp = &mut device::device_map::DeviceMap::new();
     mapp.add(ram);
     mapp.add(rom);
     mapp.add(vram);
     mapp.add(keyboard);
+    mapp.add(interrupts);
+    mapp.add(kernel);
 
     let mut cpu = cpu::CPU::new();
     let mut pins = cpu.pins;
-    while *running.lock().unwrap() {
+    while running.load(Ordering::Acquire) {
         pins = cpu.tick(pins);
         let addr = pins.address;
         if pins.rw == cpu::ReadWrite::Read {
-            match mapp.read(addr) {
-                Some(e) => pins.data = e,
-                None => {}
+            if let Some(e) = mapp.read(addr) {
+                pins.data = e
             }
             // println!(
             //     "Reading {:#06X}, data is now: {:#04X}",

@@ -22,7 +22,7 @@ impl Device for Keyboard {
     fn read(&mut self, address: u16) -> Option<u8> {
         if address == self.addr {
             let mut k = self.keys.lock().unwrap();
-            return match k.pop_front() {
+            match k.pop_front() {
                 None => Some(0),
                 Some(kv) => {
                     if kv.1 {
@@ -32,7 +32,7 @@ impl Device for Keyboard {
                         Some(vecs::key_to_scancode(kv.0))
                     }
                 }
-            };
+            }
         } else {
             None
         }
@@ -43,13 +43,13 @@ impl Device for Keyboard {
     }
 }
 
-pub struct VGA {
+pub struct Vga {
     font: psf::Font,
     keys: Arc<Mutex<VecDeque<KeyUpdate>>>,
     mem: Arc<Mutex<super::Ram>>,
 }
 
-impl VGA {
+impl Vga {
     pub fn new(
         font: psf::Font,
         keys: Arc<Mutex<VecDeque<KeyUpdate>>>,
@@ -69,7 +69,7 @@ impl VGA {
             Some(g) => {
                 for xx in 0..g.width() {
                     for yy in 0..g.height() {
-                        let pix = g.get(xx, yy).unwrap_or_else(|| false);
+                        let pix = g.get(xx, yy).unwrap_or(false);
                         if pix {
                             olc::fill_rect(
                                 x * 8 + (xx as i32),
@@ -101,7 +101,7 @@ impl VGA {
     }
 }
 
-impl olc::Application for VGA {
+impl olc::Application for Vga {
     fn on_user_create(&mut self) -> Result<(), olc::Error> {
         // Mirrors `olcPixelGameEngine::onUserCreate`. Your code goes here.
         Ok(())

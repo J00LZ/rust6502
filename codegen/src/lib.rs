@@ -525,16 +525,16 @@ impl Opcode {
             AddressingMode::Imm => self.t("sa(&mut pins, self.pc);self.pc+=1;"),
             AddressingMode::Zp => {
                 self.t("sa(&mut pins, self.pc);self.pc+=1;");
-                self.t("let zz = ga(&pins);sa(&mut pins, zz);");
+                self.t("let zz = gd(&pins) as u16;sa(&mut pins, zz);");
             }
             AddressingMode::ZpX => {
                 self.t("sa(&mut pins, self.pc);self.pc+=1;");
-                self.t("self.adl_adh = ga(&pins);sa(&mut pins, self.adl_adh);");
+                self.t("self.adl_adh = gd(&pins) as u16;sa(&mut pins, self.adl_adh);");
                 self.t("sa(&mut pins, (self.adl_adh + (self.x as u16)) & 0x00FF);");
             }
             AddressingMode::ZpY => {
                 self.t("sa(&mut pins, self.pc);self.pc+=1;");
-                self.t("self.adl_adh = ga(&pins);sa(&mut pins, self.adl_adh);");
+                self.t("self.adl_adh = gd(&pins) as u16;sa(&mut pins, self.adl_adh);");
                 self.t("sa(&mut pins, (self.adl_adh+(self.y as u16))&0x00FF);");
             }
             AddressingMode::Abs => {
@@ -726,9 +726,9 @@ impl Opcode {
     fn i_br(&mut self, f: StatusFlag, nf: bool) {
         self.cmt(branch_name(f, nf).as_str());
         //if branch not taken?
-        self.t(("sa(&mut pins, self.pc);self.adl_adh=self.pc+(gd(&pins) as u16); if self.sr.bitand(StatusRegister::".to_owned() + flag_name(f)+").bits !="+if nf { "1" }else {"0"} +" { fetch(&mut pins, self.pc) }").as_str());
+        self.t(("sa(&mut pins, self.pc);let zz = gd(&pins) as i8; self.adl_adh=if zz < 0 { self.pc - zz.abs() as u16 } else {self.pc + zz.abs() as u16 }; if self.sr.contains(StatusRegister::".to_owned() + flag_name(f) + ") == "+ if !nf { "true" } else { "false" } +" { fetch(&mut pins, self.pc) };").as_str());
         //branch taken: shortcut if page not crossed, "branchquirk" interrupt fix
-        self.t("sa(&mut pins, (self.pc & 0xFF00)|(self.adl_adh&0x00FF));if self.adl_adh&0xFF00 == self.pc &0xFF00 { self.pc=self.adl_adh;self.irq_pip>>=1;self.nmi_pip>>=1;fetch(&mut pins, self.pc) }");
+        self.t("sa(&mut pins, (self.pc & 0xFF00)|(self.adl_adh&0x00FF));if (self.adl_adh & 0xFF00) == (self.pc & 0xFF00) { self.pc = self.adl_adh; self.irq_pip>>=1; self.nmi_pip>>=1; fetch(&mut pins, self.pc) }");
         //page crossed extra cycle{
         self.t("self.pc=self.adl_adh;");
     }
@@ -1329,7 +1329,8 @@ pub fn codegen(_: TokenStream) -> TokenStream {
         enc_op(op).write_op(&mut code);
     }
     //.parse().unwrap()
-    format!(r#"
+    format!(
+        r#"
 use std::ops::BitAnd;
 impl CPU {{
     fn the_match_statement(&mut self, mut pins: &mut Pins){{
@@ -1342,13 +1343,17 @@ impl CPU {{
                         ),
         }}
     }}
-}}"#, code).parse().unwrap()
+}}"#,
+        code
+    )
+    .parse()
+    .unwrap()
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
-    fn itWorks() {
+    fn it_works() {
         assert_eq!(2 + 2, 4);
     }
 }

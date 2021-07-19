@@ -21,7 +21,7 @@ impl Device for Ram {
         if address < self.start || address >= cc {
             None
         } else {
-            self.data.get(address as usize).copied()
+            self.data.get((address - self.start) as usize).copied()
         }
     }
 
