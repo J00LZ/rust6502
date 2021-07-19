@@ -43,16 +43,16 @@ fn main() -> Result<(), CreateError> {
                 Some(e) => pins.data = e,
                 None => {}
             }
-            println!(
-                "Reading {:#06X}, data is now: {:#04X}",
-                pins.address, pins.data
-            );
+            // println!(
+            //     "Reading {:#06X}, data is now: {:#04X}",
+            //     pins.address, pins.data
+            // );
         } else {
             let res = mapp.write(addr, pins.data);
-            println!(
-                "Writing {:#06X}, data will be: {:#04X}",
-                pins.address, pins.data
-            );
+            // println!(
+            //     "Writing {:#06X}, data will be: {:#04X}",
+            //     pins.address, pins.data
+            // );
             match res {
                 Ok(_) => {}
                 Err(WriteError::NotWritable) => {}

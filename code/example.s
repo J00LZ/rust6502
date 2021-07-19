@@ -2,9 +2,8 @@
   .org $8000
 
 reset:
-  lda #$01
-  tax
-  ldx #$A5
+  ldx #$00
+yeet:
   lda #$48
   sta $400
   stx $401
@@ -44,7 +43,8 @@ reset:
   lda #$21
   sta $418
   stx $419
-
+  INX
+  jmp yeet
 loop:
   jmp loop
 

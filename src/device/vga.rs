@@ -22,27 +22,24 @@ impl Device for Keyboard {
     fn read(&mut self, address: u16) -> Option<u8> {
         if address == self.addr {
             let mut k = self.keys.lock().unwrap();
-            match k.pop_front() {
-                None => return Some(0),
+            return match k.pop_front() {
+                None => Some(0),
                 Some(kv) => {
-                    for (idx, key) in vecs::KEYS.iter().enumerate() {
-                        if key.clone() == kv.0 {
-                            return if kv.1 {
-                                k.push_front(KeyUpdate(kv.0, false));
-                                Some(0xE0)
-                            } else {
-                                Some(idx as u8)
-                            };
-                        }
+                    if kv.1 {
+                        k.push_front(KeyUpdate(kv.0, false));
+                        Some(0xE0)
+                    } else {
+                        Some(vecs::key_to_scancode(kv.0))
                     }
                 }
-            }
+            };
+        } else {
+            None
         }
-        None
     }
 
     fn write(&mut self, _: u16, _: u8) -> Result<(), WriteError> {
-        Ok(())
+        Err(WriteError::NotWritable)
     }
 }
 
@@ -112,18 +109,7 @@ impl olc::Application for VGA {
 
     fn on_user_update(&mut self, _elapsed_time: f32) -> Result<(), olc::Error> {
         olc::set_pixel_mode(olc::PixelMode::MASK);
-        // Mirrors `olcPixelGameEngine::onUserUpdate`. Your code goes here.
-
-        // Clears screen and sets black colour.
         olc::clear(olc::BLACK);
-        // Prints the string starting at the position (40, 40) and using white colour.
-
-        // olc::draw_string(0, 0, "Hello, World!", olc::WHITE)?;
-        // self.draw_string(0, 0, "Display time :tada:", 0x0F);
-        // self.draw_string(0, 1, "Random", 0xB3);
-        // self.draw_string(7, 1, "Colors", 0xE1);
-        // self.draw_string(14, 1, "Are", 0x7A);
-        // self.draw_string(18, 1, "Fun!", 0x8F);
         let mem = self.mem.lock().unwrap();
         for x in 0..80 {
             for y in 0..25 {
