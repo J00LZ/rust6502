@@ -39,7 +39,7 @@ impl<const N: usize> Device for [u8; N] {
             .get_mut(address as usize)
             .ok_or(WriteError::InvalidAddress)?;
         *d = data;
-        return Ok(());
+        Ok(())
     }
 }
 
