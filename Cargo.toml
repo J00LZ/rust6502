@@ -9,3 +9,5 @@ edition = "2018"
 bitflags = "1.2.1"
 codegen = { path = "codegen" }
 thiserror = "1.0.26"
+olc_pixel_game_engine = "0.5.0"
+psf = "0.2.0"

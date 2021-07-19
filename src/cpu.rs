@@ -221,16 +221,16 @@ impl CPU {
         }
         rd(&mut pins);
 
-        println!(
-            "going to execute {:#04X} step {}",
-            self.ir >> 3,
-            self.ir & 7
-        );
+        // println!(
+        //     "going to execute {:#04X} step {}",
+        //     self.ir >> 3,
+        //     self.ir & 7
+        // );
         // println!("new ad: {:#06X}, {:#04X}", pins.address, pins.data);
         self.the_match_statement(&mut pins);
         // println!("new ad: {:#06X}, {:#04X}", pins.address, pins.data);
 
-        println!("self={:?}, pins={:?}", self, pins);
+        // println!("self={:?}, pins={:?}", self, pins);
 
         self.ir += 1;
 

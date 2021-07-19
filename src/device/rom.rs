@@ -16,7 +16,7 @@ impl Rom {
 }
 
 impl Device for Rom {
-    fn read(&self, address: u16) -> Option<u8> {
+    fn read(&mut self, address: u16) -> Option<u8> {
         let cc = min(self.start as usize + self.data.len(), 0xFFFF) as u16;
         // println!(
         //     "min: {:#06X}, max: {:#06X}, r = {:#06X}",

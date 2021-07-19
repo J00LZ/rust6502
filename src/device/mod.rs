@@ -1,11 +1,14 @@
+use std::sync::{Arc, Mutex};
+
 use thiserror::Error;
+
+pub use ram::Ram;
+pub use rom::Rom;
 
 pub mod device_map;
 pub mod ram;
 pub mod rom;
-
-pub use ram::Ram;
-pub use rom::Rom;
+pub mod vga;
 
 #[derive(Debug, Error, Eq, PartialEq, Copy, Clone)]
 pub enum WriteError {
@@ -21,20 +24,33 @@ pub enum CreateError {
     FsError(#[from] std::io::Error),
 }
 
-
 pub trait Device {
-    fn read(&self, address: u16) -> Option<u8>;
+    fn read(&mut self, address: u16) -> Option<u8>;
     fn write(&mut self, address: u16, data: u8) -> Result<(), WriteError>;
 }
 
 impl<const N: usize> Device for [u8; N] {
-    fn read(&self, address: u16) -> Option<u8> {
+    fn read(&mut self, address: u16) -> Option<u8> {
         self.get(address as usize).copied()
     }
 
     fn write(&mut self, address: u16, data: u8) -> Result<(), WriteError> {
-        let d = self.get_mut(address as usize).ok_or(WriteError::InvalidAddress)?;
+        let d = self
+            .get_mut(address as usize)
+            .ok_or(WriteError::InvalidAddress)?;
         *d = data;
         return Ok(());
+    }
+}
+
+impl<T: Device> Device for Arc<Mutex<T>> {
+    fn read(&mut self, address: u16) -> Option<u8> {
+        let mut s = self.lock().unwrap();
+        s.read(address)
+    }
+
+    fn write(&mut self, address: u16, data: u8) -> Result<(), WriteError> {
+        let mut s = self.lock().unwrap();
+        s.write(address, data)
     }
 }

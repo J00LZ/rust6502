@@ -844,7 +844,7 @@ impl Opcode {
         //undocumented "decrement and compare"
         self.u_cmt("DCP");
         self.t("self.adl_adh = gd(&pins) as u16;wr(&mut pins);");
-        self.t("self.adl_adh-=1;self.nz(self.adl_adh as u8);sd(&mut pins, self.adl_adh as u8);self.cmp(self.ac, self.adl_adh as u8);wr(&mut pins);");
+        self.t("self.adl_adh=(Wrapping(self.adl_adh)-Wrapping(1)).0;;self.nz(self.adl_adh as u8);sd(&mut pins, self.adl_adh as u8);self.cmp(self.ac, self.adl_adh as u8);wr(&mut pins);");
     }
     //-------------------------------------------------------------------------------
     fn x_sbx(&mut self) {
@@ -855,40 +855,40 @@ impl Opcode {
     fn i_dec(&mut self) {
         self.cmt("DEC");
         self.t("self.adl_adh = gd(&pins) as u16;wr(&mut pins);");
-        self.t("self.adl_adh-=1; self.nz(self.adl_adh as u8);sd(&mut pins, self.adl_adh as u8);wr(&mut pins);");
+        self.t("self.adl_adh=(Wrapping(self.adl_adh)-Wrapping(1)).0;; self.nz(self.adl_adh as u8);sd(&mut pins, self.adl_adh as u8);wr(&mut pins);");
     }
     //-------------------------------------------------------------------------------
     fn i_inc(&mut self) {
         self.cmt("INC");
         self.t("self.adl_adh = gd(&pins) as u16;wr(&mut pins);");
-        self.t("self.adl_adh+=1; self.nz(self.adl_adh as u8);sd(&mut pins, self.adl_adh as u8);wr(&mut pins);");
+        self.t("self.adl_adh=(Wrapping(self.adl_adh)+Wrapping(1)).0;; self.nz(self.adl_adh as u8);sd(&mut pins, self.adl_adh as u8);wr(&mut pins);");
     }
     //-------------------------------------------------------------------------------
     fn i_dex(&mut self) {
         self.cmt("DEX");
-        self.t("self.x-=1; self.nz(self.x);");
+        self.t("self.x=(Wrapping(self.x)-Wrapping(1)).0;; self.nz(self.x);");
     }
     //-------------------------------------------------------------------------------
     fn i_dey(&mut self) {
         self.cmt("DEY");
-        self.t("self.y-=1; self.nz(self.y);");
+        self.t("self.y=(Wrapping(self.y)-Wrapping(1)).0;; self.nz(self.y);");
     }
     //-------------------------------------------------------------------------------
     fn i_inx(&mut self) {
         self.cmt("INX");
-        self.t("self.x+=1; self.nz(self.x);");
+        self.t("self.x=(Wrapping(self.x)+Wrapping(1)).0;; self.nz(self.x);");
     }
     //-------------------------------------------------------------------------------
     fn i_iny(&mut self) {
         self.cmt("INY");
-        self.t("self.y+=1; self.nz(self.y);");
+        self.t("self.y=(Wrapping(self.y)+Wrapping(1)).0;; self.nz(self.y);");
     }
     //-------------------------------------------------------------------------------
     fn u_isb(&mut self) {
         //undocumented INC+SBC instruction
         self.u_cmt("ISB");
         self.t("self.adl_adh = gd(&pins) as u16;wr(&mut pins);");
-        self.t("self.adl_adh+=1;sd(&mut pins, self.adl_adh as u8); self.sbc(self.adl_adh as u8);wr(&mut pins);");
+        self.t("self.adl_adh=(Wrapping(self.adl_adh)+Wrapping(1)).0;;sd(&mut pins, self.adl_adh as u8); self.sbc(self.adl_adh as u8);wr(&mut pins);");
     }
     //-------------------------------------------------------------------------------
     fn i_asl(&mut self) {

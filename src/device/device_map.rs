@@ -9,14 +9,14 @@ impl<'t> DeviceMap {
         Self { devices: vec![] }
     }
 
-    pub fn add<T: 'static + Device>(&mut self, ram: T) {
-        self.devices.push(Box::new(ram));
+    pub fn add<T: 'static + Device>(&mut self, device: T) {
+        self.devices.push(Box::new(device));
     }
 }
 
 impl<'t> Device for DeviceMap {
-    fn read(&self, address: u16) -> Option<u8> {
-        for dev in &self.devices {
+    fn read(&mut self, address: u16) -> Option<u8> {
+        for dev in &mut self.devices {
             match dev.read(address) {
                 None => {}
                 Some(x) => return x.into(),
