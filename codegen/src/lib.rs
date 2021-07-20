@@ -676,7 +676,7 @@ impl Opcode {
     //-------------------------------------------------------------------------------
     fn i_tya(&mut self) {
         self.cmt("TYA");
-        self.t("self.ac=self.x;self.nz(self.ac);");
+        self.t("self.ac=self.y;self.nz(self.ac);");
     }
     //-------------------------------------------------------------------------------
     fn i_txs(&mut self) {
