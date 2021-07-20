@@ -4,6 +4,8 @@ use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::thread::sleep;
+use std::time::{Duration, SystemTime};
 
 pub mod cpu;
 mod device;
@@ -26,7 +28,7 @@ fn main() -> Result<(), CreateError> {
     });
     let keyboard = device::vga::Keyboard::new(0x10, keys);
     let ram = device::Ram::new(0x0100, 0x0400);
-    let rom = device::Rom::new_file(0x8000, "./code/bin/example2")?;
+    let rom = device::Rom::new_file(0x8000, "./code/bin/example")?;
     let kernel = device::Rom::new_file(0xE000, "./code/bin/kernel")?;
     let interrupts = device::Rom::interrupts(0, 0xE000, 0);
 
@@ -41,6 +43,7 @@ fn main() -> Result<(), CreateError> {
     let mut cpu = cpu::CPU::new();
     let mut pins = cpu.pins;
     while running.load(Ordering::Acquire) {
+        let now = SystemTime::now();
         pins = cpu.tick(pins);
         let addr = pins.address;
         if pins.rw == cpu::ReadWrite::Read {
@@ -65,6 +68,20 @@ fn main() -> Result<(), CreateError> {
         }
         if pins.address == 0xFFFF && pins.data == 0xFF {
             break;
+        }
+        match now.elapsed() {
+            Ok(elapsed) => {
+                // it prints '2'
+                let elapsed = elapsed.as_nanos();
+                println!("execution took {}ns!", elapsed);
+                if elapsed < 1000 {
+                    sleep(Duration::from_nanos((1000 - elapsed) as u64))
+                }
+            }
+            Err(e) => {
+                // an error occurred!
+                println!("Error: {:?}", e);
+            }
         }
     }
 

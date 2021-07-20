@@ -1,9 +1,10 @@
 .autoimport +
 
 .word reset
+.include "version.inc"
 
 reset:
-  ldx #$00
+  jsr xstuff
 yeet:
   lda #$48
   sta $500
